@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "name": "eBPF (arm64)",
+            "includePath": [
+                "/usr/include/aarch64-linux-gnu"
+            ],
+            "defines": [
+                "__TARGET_ARCH_arm64"
+            ],
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-clang-arm64",
+            "compilerPath": "/usr/bin/clang",
+            "compilerArgs": [
+                "--target=bpf",
+                "-mcpu=v3"
+            ]
+        }
+    ],
+    "version": 4
+}
