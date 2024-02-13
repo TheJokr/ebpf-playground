@@ -12,9 +12,11 @@
 const char LICENSE[] SEC("license") = "Dual MIT/GPL";
 const uint32_t KVER SEC("version") = KERNEL_VERSION(5, 8, 0);
 
-// BTF ringbuf map definition, see https://docs.kernel.org/bpf/btf.html#bpf-map-create.
-// This type of eBPF map implements a FIFO queue to pass data from eBPF to the host application.
-// Requires at least Linux 5.8 (from Aug 2020).
+// eBPF programs exchange data with their host application using maps. The map's type
+// defines its interface and capabilities. We use a ringbuf map, which implements a
+// unidirectional FIFO queue with dynamic entries (available since Linux 5.8, Aug 2020).
+// Map definitions use special libbpf macros for encoding into the eBPF binary,
+// see https://docs.kernel.org/bpf/btf.html#bpf-map-create.
 struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
     __uint(max_entries, 16 * 1024);  // must be multiple of PAGE_SIZE
@@ -42,7 +44,7 @@ struct http_trace {
     uint8_t buf[HTTP_TRACE_BUF];
 };
 
-// Force LLVM to generate BTF for struct http_trace
+// Force LLVM to emit type information for struct http_trace
 const struct http_trace *t_unused __attribute__((unused));
 
 // Helper functions to define the semantics of struct http_trace_head's fields
@@ -68,7 +70,7 @@ int http_client_do_ret(const struct pt_regs *ctx) {
     // A uretprobe triggers on return from the instrumented function.
     // Since this function is implemented in Go, it follows Go's
     // (nonstandard, unstable) ABIInternal: https://go.dev/s/regabi
-    // TL;DR: the return values here are stored unpacked in registers.
+    // TL;DR: the return values are stored unpacked in registers.
 
     // R0 = *Response
     // (R1, R2) = error (struct ifacehdr)
@@ -90,6 +92,7 @@ int http_client_do_ret(const struct pt_regs *ctx) {
     } r;  // shared stack space for reads from process memory
     void *next = (void*)resp_ptr;
 
+    // eBPF helper for: r.resp = *next (except its fallible)
     if (bpf_probe_read_user(&r.resp, sizeof(r.resp), next) != 0) {
         bpf_ringbuf_discard(t, BPF_RB_NO_WAKEUP);
         return 1;  // failed to copy struct from process memory
