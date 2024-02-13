@@ -64,9 +64,9 @@ static __always_inline int write_method(struct http_trace *, const string *);
 static __always_inline int write_url(struct http_trace *, const struct net_url *);
 
 
-SEC("uretprobe/http_client_do")
-// func (c *Client) do(*Request) (*Response, error)
-int http_client_do_ret(const struct pt_regs *ctx) {
+SEC("uretprobe/http_transport_roundtrip")
+// func (t *Transport) RoundTrip(*Request) (*Response, error)
+int http_transport_roundtrip_ret(const struct pt_regs *ctx) {
     // A uretprobe triggers on return from the instrumented function.
     // Since this function is implemented in Go, it follows Go's
     // (nonstandard, unstable) ABIInternal: https://go.dev/s/regabi
