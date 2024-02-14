@@ -22,6 +22,12 @@ struct {
     __uint(max_entries, 16 * 1024);  // must be multiple of PAGE_SIZE
 } traces SEC(".maps");
 
+// Global variables are also converted into maps by the eBPF loader. Constants can conveniently
+// be rewritten before loading the eBPF program into the kernel (as seen in the Go code).
+// These two constants are necessary to retrieve the namespaced PID of the instrumented program.
+volatile const __u64 pidns_dev;
+volatile const __u64 pidns_ino;
+
 
 #define HTTP_TRACE_SIZE (512 - 8)
 #define HTTP_TRACE_BUF (HTTP_TRACE_SIZE - sizeof(struct http_trace_head))
@@ -98,16 +104,22 @@ int http_transport_roundtrip_ret(const struct pt_regs *ctx) {
         return 1;  // failed to copy struct from process memory
     }
 
+    // Retrieve namespaced PID. If that fails, fall back to the PID from the root ns.
+    // The user-facing PID is called tgid in the kernel.
+    struct bpf_pidns_info pid = {0};
+    if (bpf_get_ns_current_pid_tgid(pidns_dev, pidns_ino, &pid, sizeof(pid)) != 0) {
+        pid.tgid = bpf_get_current_pid_tgid() >> 32;
+    }
+
     // At this point, we have enough data to fill most of our trace header.
     // We set partial = true in case a later operation fails, but from here
     // on, we will always submit the trace.
-    const __u64 pid_tgid = bpf_get_current_pid_tgid();
     t->head = (struct http_trace_head){
         .partial = true,
         .protocol = http_protocol(r.resp.proto_major, r.resp.proto_minor),
         .status_code = r.resp.status_code,
         .content_length = http_content_length(r.resp.content_length),
-        .pid = (pid_tgid >> 32),
+        .pid = pid.tgid,
     };
 
     next = r.resp.request;
