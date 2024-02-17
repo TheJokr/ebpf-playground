@@ -70,6 +70,8 @@ static __always_inline int write_method(struct http_trace *, const string *);
 static __always_inline int write_url(struct http_trace *, const struct net_url *);
 
 
+// This is the probe's "main" function, which will be executed by the kernel whenever
+// the probe point we set up is hit. The setup is done in the host Go application.
 SEC("uretprobe/http_transport_roundtrip")
 // func (t *Transport) RoundTrip(*Request) (*Response, error)
 int http_transport_roundtrip_ret(const struct pt_regs *ctx) {
