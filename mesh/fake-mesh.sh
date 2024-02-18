@@ -4,17 +4,17 @@ set -euo pipefail
 # Simple service mesh example for demonstration
 # Based on https://github.com/nicholasjackson/fake-service
 if [[ ! -x /tmp/fake-service ]]; then
-    tmpdst="$(mktemp)"
     case "$(uname -m)" in
-    aarch64)
-        curl -fL --proto '=https' -o "$tmpdst" 'https://github.com/nicholasjackson/fake-service/releases/download/v0.26.2/fake_service_linux_arm64.zip';;
-    x86_64)
-        curl -fL --proto '=https' -o "$tmpdst" 'https://github.com/nicholasjackson/fake-service/releases/download/v0.26.2/fake_service_linux_amd64.zip';;
+    aarch64) arch='arm64';;
+    x86_64) arch='amd64';;
     *) echo 'Unsupported architecture' >&2; exit 1;;
     esac
 
+    tmpdst="$(mktemp)"
+    curl -fL --proto '=https' -o "$tmpdst" "https://github.com/nicholasjackson/fake-service/releases/download/v0.26.2/fake_service_linux_${arch}.zip"
     unzip "$tmpdst" fake-service -d /tmp
     chmod a+x /tmp/fake-service
+    rm -f "$tmpdst"
 fi
 
 
@@ -33,4 +33,5 @@ NAME=proxy-ext LISTEN_ADDR='localhost:8084' /tmp/fake-service &
 UPSTREAM_URIS='http://localhost:8081/,http://localhost:8083/,http://localhost:8084/' \
 NAME=api LISTEN_ADDR='localhost:8080' /tmp/fake-service &
 
+echo 'fake-mesh entrypoint listening at http://localhost:8080/'
 wait
