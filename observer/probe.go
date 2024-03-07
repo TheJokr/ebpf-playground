@@ -4,25 +4,8 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"slices"
 	"strconv"
-	"strings"
-
-	"github.com/prometheus/procfs"
 )
-
-var (
-	proc         procfs.FS
-	appIDEnvVars = []string{"NAME", "IDENTITY", "APP_NAME", "APP_ID"}
-)
-
-func init() {
-	var err error
-	proc, err = procfs.NewDefaultFS()
-	if err != nil {
-		panic(err)
-	}
-}
 
 // The methods below convert struct http_trace's fields to useable values.
 
@@ -66,7 +49,7 @@ func (t *probeHttpTrace) Status() string {
 }
 
 func (t *probeHttpTrace) String() string {
-	app := appID(t.Head.Pid)
+	app := AppID(int(t.Head.Pid))
 	if app == "" {
 		app = fmt.Sprintf("P-%d", t.Head.Pid)
 	}
@@ -76,30 +59,4 @@ func (t *probeHttpTrace) String() string {
 		"%s -[%s %s]-> %s [%s, %s bytes]",
 		app, t.Method(), t.Protocol(), t.URL(), t.Status(), length,
 	)
-}
-
-func appID(pid uint32) string {
-	c, err := proc.Proc(int(pid))
-	if err != nil {
-		return ""
-	}
-
-	app, _ := c.Comm()
-	env, _ := c.Environ()
-	ids := filterAppIDEnv(env)
-	if len(ids) == 0 {
-		return app
-	}
-
-	return fmt.Sprintf("%s@%s", app, strings.Join(ids, "-"))
-}
-
-func filterAppIDEnv(env []string) (ids []string) {
-	for _, val := range env {
-		k, v, ok := strings.Cut(val, "=")
-		if ok && slices.Contains(appIDEnvVars, k) {
-			ids = append(ids, v)
-		}
-	}
-	return
 }
