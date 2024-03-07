@@ -24,13 +24,13 @@ export TIMING_50_PERCENTILE='0.1s' TIMING_99_PERCENTILE='0.5s'
 NAME=authz LISTEN_ADDR='localhost:8081' /tmp/fake-service &
 NAME=users LISTEN_ADDR='localhost:8082' /tmp/fake-service &
 
-UPSTREAM_URIS='http://localhost:8081/,https://example.com/,https://example.net/' \
+UPSTREAM_URIS='http://localhost:8081,https://example.com,https://example.net' \
 NAME=inventory LISTEN_ADDR='localhost:8083' /tmp/fake-service &
 
-UPSTREAM_URIS='http://localhost:8082/,https://github.com/nicholasjackson/fake-service' \
+UPSTREAM_URIS='http://localhost:8082,https://github.com/nicholasjackson/fake-service' \
 NAME=proxy-ext LISTEN_ADDR='localhost:8084' /tmp/fake-service &
 
-UPSTREAM_URIS='http://localhost:8081/,http://localhost:8083/,http://localhost:8084/' \
+UPSTREAM_URIS='http://localhost:8081,http://localhost:8083,http://localhost:8084' \
 NAME=api LISTEN_ADDR='localhost:8080' /tmp/fake-service &
 
 echo 'fake-mesh entrypoint listening at http://localhost:8080/'
