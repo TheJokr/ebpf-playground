@@ -3,10 +3,14 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/cilium/ebpf"
@@ -31,11 +35,12 @@ func readRingbuf(rbMap *ebpf.Map) {
 	var rec ringbuf.Record
 	var reader bytes.Reader
 	var trace probeHttpTrace
+	g := newHttpGraph()
 
 	for {
 		if err := rb.ReadInto(&rec); err != nil {
 			if errors.Is(err, ringbuf.ErrClosed) {
-				return
+				break
 			}
 			log.Printf("read from ringbuf: %v", err)
 			continue
@@ -52,5 +57,59 @@ func readRingbuf(rbMap *ebpf.Map) {
 		}
 
 		log.Print(&trace)
+		g.add(&trace)
 	}
+
+	log.Printf("HTTP dependency graph (DOT): %s", g.dot())
+}
+
+type httpGraph struct {
+	// src pid -> dst host -> count
+	adj map[uint32]map[string]uint
+}
+
+func newHttpGraph() httpGraph {
+	return httpGraph{adj: make(map[uint32]map[string]uint)}
+}
+
+func (g httpGraph) add(trace *probeHttpTrace) {
+	url, err := url.Parse(string(trace.URL()))
+	if err != nil {
+		log.Printf("parse trace URL: %v", err)
+		return
+	}
+
+	dests := g.adj[trace.Head.Pid]
+	if dests == nil {
+		dests = make(map[string]uint)
+		g.adj[trace.Head.Pid] = dests
+	}
+
+	dests[url.Host] += 1
+}
+
+func (g httpGraph) dot() string {
+	socks := LoadTCPSocketProcs()
+	var o strings.Builder
+	o.WriteString("strict digraph {\n")
+
+	for src, edges := range g.adj {
+		srcID := dotQuote(AppID(int(src)))
+		for dstHost, cnt := range edges {
+			dstID := dstHost
+			if dst, err := socks.HostPid(dstHost); err == nil {
+				dstID = AppID(dst)
+			}
+
+			fmt.Fprintf(&o, "%s -> %s [xlabel=%d]\n", srcID, dotQuote(dstID), cnt)
+		}
+	}
+
+	o.WriteRune('}')
+	return o.String()
+}
+
+func dotQuote(v string) string {
+	quoted, _ := json.Marshal(v)
+	return string(quoted)
 }
