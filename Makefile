@@ -1,5 +1,5 @@
 .SUFFIXES:
-.PHONY: default all observer test-svc disasm run-mesh observe-mesh
+.PHONY: default all observer test-svc disasm run-mesh observe-mesh graph
 default: observer
 all: observer test-svc
 
@@ -31,3 +31,7 @@ run-mesh:
 
 observe-mesh: /tmp/observer
 	@exec '$<' /tmp/fake-service
+
+graph: g ?= g.dot
+graph:
+	dot -Tpng -O -Gdpi=300 -Nshape=egg -Npenwidth=2 -Epenwidth=2.5 '$(g)'

@@ -8,5 +8,5 @@ RUN dpkg --add-architecture amd64 && dpkg --add-architecture arm64 \
     && apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends clang llvm \
     libbpf-dev bpftool libcap2-bin libc6-dev:amd64 libc6-dev:arm64 \
-    linux-libc-dev:amd64 linux-libc-dev:arm64 \
+    linux-libc-dev:amd64 linux-libc-dev:arm64 graphviz \
     && apt-get -y clean
